@@ -1,7 +1,7 @@
 # Car_price_with_R
 Analysis and predict the price of car using R language.
 
-To underestand the dataset please observe `Data Dictionary - carprices.xlsx'.
+To underestand the dataset please observe `Data Dictionary - carprices.xlsx`.
 
 The following things have been done in this project.
 ## Load and preprocessing of the dataset
