@@ -1,0 +1,817 @@
+---
+title: "Statistics Project"
+author: "Ali Aramideh"
+date: "July , 2023"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+# Add Libraries
+
+```{r Library, message=FALSE, warning=FALSE, results='hide'}
+library(ggplot2)
+library(tidyverse)
+library(readxl)
+library(zoo)
+library(caret)
+library(corrplot)
+library(coefplot)
+library(rmarkdown)
+library(rpart)
+library(dplyr)
+library(stats)
+library(readr)  # for read_csv
+library(knitr)  # for kable
+```
+
+# 1) Dataset Loading and Preprocessing
+## Read Data From Dataset
+- Show the first five rows by head() function
+- Displaying the internal structure by str() function.
+- Summary about our data using summary() function.
+- Replace NA values.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+url = "https://github.com/AliAramideh/Car_price_with_R/raw/main/CarPrice_Assignment.csv"
+dataset = read.csv(url)
+# To observe output of this code chunk please check my code!
+# head(dataset)
+```
+
+Displaying the internal structure by str() function
+```{r}
+str(dataset)
+```
+
+Summary of dataset:
+```{r}
+summary(dataset)
+```
+
+## Boxplot
+The boxplot provides information about the distribution and statistical characteristics of the selected columns. In this graph, you can see the data based on the median, quartiles, limit values, and outliers. This chart can help you get a better understanding of the distribution of the data and the possible existence of outliers and outliers.
+
+we should select three of coloumns which have close value(for example we should not select 'price' coloumn)
+
+Generally a simple way of representing statistical data on a plot in which a rectangle is drawn to represent the second and third quartiles, usually with a vertical line inside to indicate the median value. The lower and upper quartiles are shown as horizontal lines either side of the rectangle.
+
+```{r pressure, message=FALSE, warning=FALSE, paged.print=TRUE}
+# Select three desired columns:
+selected_coloumns = dataset[, c('citympg', 'highwaympg', 'horsepower')]
+
+# Boxplot
+boxplot(selected_coloumns)
+```
+
+## Missing Values
+To solve the problem of missing data, instead of removing them, we can use a method called "mean imputation". In this method, missing values are replaced by the mean of the corresponding column. This method is used because it takes into account the information in other columns while maintaining the total number of data.
+
+The moving average method is used because it fills the missing data with similar true values, while preserving the total number of data. However, we should note that this method may affect the distribution of the data and alter certain analytical results. Therefore, before using this method, we should measure its effect on our analytical results.
+```{r message=FALSE, warning=FALSE}
+data = replace(dataset, TRUE, lapply(dataset, na.aggregate))
+```
+To check:
+```{r}
+summary(data)
+```
+
+## Dummy
+We should find the factor coloumns and define the dummy variables.
+
+We can use one-hot encoding method.
+
+##### One-hot Encoding:
+One-hot encoding is a technique used in machine learning and data analysis to convert categorical variables into a binary vector representation. It is primarily used when dealing with categorical data that cannot be directly used in mathematical models or algorithms.
+
+In one-hot encoding, each category or level of a categorical variable is represented by a binary value (0 or 1) in a new set of binary variables. The number of binary variables created is equal to the number of unique categories in the original variable.
+
+The purpose of one-hot encoding is to enable machine learning algorithms to effectively interpret and utilize categorical data. By converting categorical variables into numerical representations, it allows algorithms to perform calculations on these features.
+
+However, it's important to note that one-hot encoding can lead to an increase in the dimensionality of the dataset, especially when dealing with large numbers of unique categories. Like our dataset.
+```{r}
+data = data[, -c(4)]
+# We should import 'caret' library
+dummy = dummyVars(" ~ .", data=data)
+new_data = data.frame(predict(dummy, newdata = data))
+
+# To observe output of this code chunk please check my code!
+# head(new_data)
+```
+
+## Correlation Map
+In this part we should use the dataset obtained in the previous section but our correlation map will be bad(??ecause the number of our variables is large), so we draw correlation map just for numeric coloumns.
+
+###### Definition:
+A correlation map, also known as a correlation matrix or heatmap, is a visual representation of the correlation coefficients between variables in a dataset. It provides a quick and intuitive way to understand the relationships between variables and identify patterns or dependencies.
+
+In a correlation map, each variable is represented by both row and column labels, forming a square matrix. The cells of the matrix are filled with color gradients or numerical values that represent the strength and direction of the correlation between the corresponding variables.
+
+A correlation map helps in several ways:
+
+- Identify Strong Relationships: By looking at the color gradients or numerical values in the correlation map, you can quickly identify variables that have a strong positive or negative correlation. This information can be useful for feature selection or identifying potential multicollinearity issues in regression models.
+
+- Visualize Patterns: Correlation maps allow you to visualize patterns and dependencies between variables. For example, you may observe that certain groups of variables have high positive correlations, indicating that they are related or influenced by similar factors.
+
+- Prioritize Analysis: When dealing with a large dataset, a correlation map can help you prioritize which variables to analyze further. Variables with high correlations may be more relevant or provide redundant information, while variables with low correlations may be less important.
+
+- Detect Outliers: Unusual or outlier values in the correlation map can indicate potential errors or anomalies in the data. These outliers may warrant further investigation or data cleaning.
+
+- Guide Decision-Making: Understanding the relationships between variables can help guide decision-making processes. For example, if two variables have a strong positive correlation, changes in one variable may have a predictable impact on the other variable.
+
+Note that correlation does not imply causation. A high correlation between two variables does not necessarily mean that one variable causes the other. Correlation only measures the strength and direction of the linear relationship between variables
+
+###### Correlation map for dataset with dummies:
+You can see our map is not good but we can see all data correlation.
+```{r}
+# Calculate Correlation matrix:
+cor_matrix = cor(new_data)
+# To observe output of this code chunk please check my code!
+# cor_matrix
+```
+```{r}
+dim(cor_matrix)
+```
+
+```{r}
+# We should import 'corrplot' library
+corrplot(cor_matrix, order = 'hclust')
+```
+But we can observ correlation of sub our correlation matrix:
+```{r}
+corrplot(cor_matrix[1:30, 1:30], order = 'hclust')
+```
+
+###### Correlation map for main dataset without factor coloumns:
+```{r}
+# Remove factor coloumns:
+data_without_factor = data[,!names(data) %in% c("CarName", "fueltype", "aspiration", 
+                                                "doornumber", "carbody", "drivewheel", 
+                                                "enginelocation", "enginetype", 
+                                                "cylindernumber", "fuelsystem")]
+
+# To observe output of this code chunk please check my code!
+# head(data_without_factor)
+```
+```{r}
+# Calculate Correlation matrix:
+cor_matrix_without_factor = cor(data_without_factor)
+
+# To observe output of this code chunk please check my code!
+# head(cor_matrix_without_factor)
+```
+Therefore:
+```{r}
+corrplot(cor_matrix_without_factor, order = 'hclust')
+```
+
+### T-Test:
+In statistics, a t-test is a hypothesis test that is used to determine if there is a significant difference between the means of two groups. It is commonly used when comparing the means of a sample to a known or hypothesized population mean, or when comparing the means of two independent samples.
+
+The t-test is based on the t-distribution, which is a mathematical distribution that is similar to the normal distribution but has thicker tails. The t-distribution takes into account the sample size and the variability within the groups being compared.
+
+There are different types of t-tests, depending on the specific situation and assumptions. The most common types are:
+
+1. Independent samples t-test: This is used when comparing the means of two independent groups. For example, comparing the average test scores of students who received a certain treatment versus those who did not.
+
+2. Paired samples t-test: This is used when comparing the means of two related groups. For example, comparing the average weight of individuals before and after a weight loss program.
+
+3. One-sample t-test: This is used when comparing the mean of a sample to a known or hypothesized population mean. For example, determining if the average height of a group of individuals is significantly different from the average height of the general population.
+
+To conduct a t-test, you need to calculate the t-value, which is a ratio of the difference between the means of the groups to the variability within the groups. The t-value is then compared to a critical value from the t-distribution to determine if the difference between the means is statistically significant.
+
+The critical value is determined based on the desired significance level, which is typically set at 0.05. If the calculated t-value is greater than the critical value, it suggests that the difference between the means is statistically significant, indicating that there is strong evidence to reject the null hypothesis. If the calculated t-value is less than the critical value, it suggests that the observed difference could be due to chance, and there is not enough evidence to reject the null hypothesis.
+
+In addition to the t-value, the t-test also provides a p-value, which is a measure of the evidence against the null hypothesis. The p-value represents the probability of obtaining a test statistic as extreme as the one observed, assuming the null hypothesis is true. If the p-value is less than the significance level (e.g., 0.05), it is considered statistically significant, indicating a significant difference between the means.
+
+Overall, the t-test is a widely used statistical test for comparing means and determining if there is a significant difference between groups. It provides a way to make inferences about the population based on sample data.
+
+###### 1. Hypothesis Test1:
+$H_0$: 'price' and 'citympg' do not have significant correlation.
+
+$H_a$: true correlation is not equal to 0
+```{r}
+cor.test(data$price, data$citympg)
+```
+Therefore our null hypothesis is rejected, hence 'price' and 'citympg(mileage in city)' have significant correlation.
+
+###### 2. Hypothesis Test2:
+$H_0$: 'price' and 'stroke' do not have significant correlation.
+
+$H_a$: true correlation is not equal to 0
+```{r}
+cor.test(data$price, data$stroke)
+```
+
+There isn't enough evidence to reject the null hypothesis, hence 'price' and 'stroke(stroke or volume inside the engine)' have not significant correlation.
+
+###### 3. Hypothesis Test 3:
+$H_0$: 'stroke' and 'horsepower' do not have significant correlation.
+
+$H_a$: true correlation is not equal to 0
+```{r}
+cor.test(data$stroke, data$horsepower)
+```
+
+There isn't enough evidence to reject the null hypothesis, hence 'stroke(stroke or volume inside the engine)' and 'horsepower' have not significant correlation.
+
+###### 4. Hypothesis Test 4:
+$H_0$: 'horsepower' and 'enginesize' do not have significant correlation.
+
+$H_a$: true correlation is not equal to 0
+```{r}
+cor.test(data$enginesize, data$horsepower)
+```
+
+Therefore our null hypothesis is rejected, hence 'enginsize' and 'horsepower' have significant correlation.
+
+## Train and Test
+One method for predicting the performance of a model on unseen data is to use a selected subset of our existing data as a randomly sampled test dataset, while the remaining data is used as the training dataset. This is commonly known as the train-test split. The ratio at which we perform this split depends on several factors, such as the size of our dataset and the specific problem we are working on.
+
+A common practice is to use a 70-30 or 80-20 split, where 70% or 80% of the data is used for training the model, and the remaining 30% or 20% is used for testing the model's performance. However, these ratios can vary depending on our specific requirements and the size of our dataset.
+
+We can split our data into training and test sets using the 'caret' package in R.
+
+```{r}
+# For reproducibility
+set.seed(123)
+
+train_index = createDataPartition(new_data$X, p = 0.8, list = FALSE)
+train_data = new_data[train_index, ]
+test_data = new_data[-train_index, ]
+
+# Check
+dim(train_data)
+dim(test_data)
+dim(new_data)
+```
+
+## Causal Effect
+Generally correlation does not imply causation, and other factors may also affect the relationship between variables. Therefore, it's important to interpret the results carefully and consider other factors that may influence the response variable. Therefoe to understand which variables have a causal effect on a response variable using a correlation map, you need to keep in mind that correlation does not imply causation. Correlation simply measures the statistical relationship between two variables, indicating how they change together. While a correlation map can provide insights into the relationships between variables, it cannot definitively determine causality. 
+
+Based on the correlation map and the obtained values, we can make predictions about which features are more influential and which ones have a weaker effect (less causal effect on the response variable).
+
+To determine the influence of features, we can look for higher correlation values. Features that have higher absolute correlation values with the response variable tend to be more influential. On the other hand, features with lower absolute correlation values or close to zero can be considered less influential.
+
+However, there are some steps we can take to infer causality from correlation:
+
+- Combine correlation with other evidence: Correlation is just one piece of the puzzle. It's essential to consider other types of evidence, such as experimental studies, expert opinions, or domain knowledge, to support or refute causal relationships.
+
+- Be cautious of confounding variables: Correlation may be influenced by the presence of confounding variables. These are variables that are related to both the predictor and response variables and can lead to spurious correlations. Take care to identify and control for such variables.
+
+- Conduct further analysis: If we find a strong correlation between a predictor variable and the response variable, we can delve deeper into the relationship. Techniques like regression analysis, causal inference methods (e.g., propensity score matching, instrumental variable analysis), or experimental studies can provide additional evidence to support or refute causality.
+
+Additionally, we can also consider the statistical significance of the correlation coefficients. If the correlation coefficient is statistically significant (i.e., the p-value is below a certain threshold, typically 0.05), it indicates a stronger relationship between the variables.
+
+Remember that 
+```{r}
+cor_df = as.data.frame(cor_matrix_without_factor)
+# To observe output of this chuck if you see my code is better!
+cor_df['price']
+```
+
+Therefore, according to our correlation map(coloumn 'price' of cor_df) and our hypothesis tests, I gues that:
+
+'highwaympg', 'citympg', 'horsepower', 'enginesize', 'curbweight', 'carwidth', 'carlength', 'wheelbase' can have casual effect on 'price' but I am not sure at all.
+
+'car_ID', 'symboling', 'carheight', 'stroke', 'compressionratio' have casual effect on 'price' less than variables which mentioned above but I am not sure at all.
+
+We can use multiple regression or other statistical tests to Reject or prove our hypotheses.
+
+Now we use multiple regression for this:
+```{r}
+summary(lm(price ~ ., data= data_without_factor))
+```
+
+As you see, ['enginesize', 'stroke', 'compressionratio'], ['horsepower', 'peakrpm'], ['curbweight'] that have three star, two star, one star have the main causal effect
+
+# 2)Data Processing With Multiple Regression Model
+
+First of all we should fit the multiple regression model to our train data:
+```{r}
+# Fit the multiple regression model:
+model = lm(price ~ ., data = train_data)
+summary(model)
+```
+
+
+- NA as a coefficient in a regression indicates that the variable in question is linearly related to the other variables.
+
+- (12 not defined because of singularities): This indicates that two or more predictor variables in the model have a perfect linear relationship and thus not every regression coefficient in the model can be estimated.
+
+I model our train data with one, two, three, etc variable, I observed more interesting things that I see them in our course, with the increase of variables, the influence of variables that really might not be important is lost
+```{r}
+summary(lm(price ~ carheight + boreratio +
+             stroke + compressionratio + peakrpm + highwaympg, data= train_data))
+```
+
+###### Now we should predict our response('price') by our model:
+```{r message=FALSE, warning=FALSE}
+# Calculate the predicted values
+
+# Train Data
+predicted_train = predict(model, train_data)
+# predicted_train
+
+# Test Data
+predicted_test = predict(model, test_data)
+# predicted_test
+```
+
+#### RSS(Residuals Sum of Squares):
+The RSS formulated as:
+
+
+$$ RSS = \sum_{i=1}^n(y_i - \hat{y}_i)^2 $$
+
+Now, let's discuss the meaning and application of the mentioned metric:
+
+RSS measures the sum of the squared differences between the predicted and actual values. It represents the amount of unexplained variance in the response(dependent) variable by the model.
+```{r}
+# For Train Data:
+
+## Calculate the residuals:
+residuals_train = train_data$price - predicted_train
+
+## Calculate the Residuals Sum of Squares
+RSS_train = sum(residuals_train^2)
+print('RSS_train:')
+RSS_train
+
+##----------------------------------------------------------------------
+
+# For Test Data:
+
+## Calculate the residuals:
+residual_test = test_data$price - predicted_test
+
+## Calculate the Residuals Sum of Squares
+RSS_test = sum(residual_test^2)
+print('RSS_test:')
+RSS_test
+```
+
+#### TSS(Total Sum of Squares):
+The TSS formulated as:
+
+$$ TSS = \sum_{i=1}^n(y_i - \bar{y})^2$$
+
+Now, let's discuss the meaning and application of the mentioned metric:
+
+TSS measures the total variation in the response variable. It represents the total variance in the response variable.
+```{r}
+# For Train Data
+
+## Calculate the TSS (Total Sum of Squares)
+TSS_train = sum((train_data$price - mean(train_data$price))^2)
+print('TSS_train:')
+TSS_train
+
+##---------------------------------------------------------------------------------
+
+# For Test Data
+
+## Calculate the TSS (Total Sum of Squares)
+TSS_test = sum((test_data$price - mean(test_data$price))^2)
+print('TSS_test')
+TSS_test
+```
+
+#### MSE (Mean Squared Error):
+The MSE formulated as:
+
+
+$$ MSE = \frac{1}{n}\sum_{i=1}^n(y_i - \hat{y}_i)^2 = \frac{RSS}{n}$$
+
+Now, let's discuss the meaning and application of the mentioned metric:
+
+MSE is the average of the squared differences between the predicted and actual values. It represents the average squared deviation of the predicted values from the actual values.
+```{r}
+# For Train Data
+
+## Calculate MSE(Mean Squared Error)
+MSE_train = RSS_train / length(train_data$price)
+print('MSE_train:')
+MSE_train
+
+##------------------------------------------------------------------------------
+
+# For Test Data
+
+## Calculate MSE(Mean Squared Error)
+MSE_test = RSS_test / length(test_data$price)
+print('MSE_test')
+MSE_test
+```
+
+#### R-squared:
+The R-squared formulated as:
+
+
+$$ R^2 = \frac{TSS - RSS}{TSS} = 1 - \frac{RSS}{TSS}$$
+
+Now, let's discuss the meaning and application of the mentioned metric:
+
+R-squared represents the proportion of the variance in the response variable that is explained by the model. It ranges from 0 to 1, where 0 indicates that the model explains none of the variance and 1 indicates that the model explains all of the variance.
+```{r}
+# For Train Data
+
+## Calculate the R-squared
+R_squared_train = 1 - RSS_train / TSS_train
+print('R_squared_train')
+R_squared_train
+
+# For Test Data
+
+## Calculate the R-squared
+R_squared_test = 1 - RSS_test / TSS_test
+print('R_squared_test')
+R_squared_test
+```
+
+#### Adjusted R-squared:
+The Adjusted R-squared formulated as:
+
+
+$$ Adjusted R-squared := 1 - \frac{(1-R^2)(n-1)}{n-p-1}$$
+
+Where:
+- $ R^2 $ sample R-Squared
+- $ n $ total sample size
+- $ p $ number of independent variable
+
+Now, let's discuss the meaning and application of the mentioned metric:
+
+Adjusted R-squared is a modified version of R-squared that adjusts for the number of predictors in the model. It penalizes the addition of unnecessary predictors and provides a more reliable measure of the model's goodness of fit.ariance.
+```{r}
+# For Train Data:
+
+## Calculate the adjusted R-squared
+n_train = length(train_data$price)
+p = length(model$coefficients) - 1
+
+adjusted_R_squared_train = 1 - (RSS_train / (n_train - p - 1)) / (TSS_train / (n_train - 1))
+print('adjusted_R_squared_train')
+adjusted_R_squared_train
+
+# For Test Data:
+
+## Calculate the adjusted R-squared
+n_test = length(test_data$price)
+
+adjusted_R_squared_test = 1 - (RSS_test / (n_test - p - 1)) / (TSS_test / (n_test - 1))
+print('adjusted_R_squared_test')
+adjusted_R_squared_test
+```
+
+To compare the magnitude of coefficients, you can use a coefficient plot. However, it's important to note that the importance of a coefficient is not solely determined by its magnitude. The significance (p-value) of the coefficient and its relevance to the research question should also be considered.
+
+If the data scales are different, it is recommended to standardize or normalize them before fitting the regression model. This ensures that all variables are on a similar scale and prevents any variable from dominating due to its larger magnitude.
+
+To evaluate the performance of the model on test data, you can use similar metrics such as RSS, TSS, MSE, R-squared, and adjusted R-squared. Additionally, you can calculate predictions on test data using predict() function with newdata argument set to test_data.
+
+To improve model performance, you can consider various techniques such as feature selection (removing irrelevant or highly correlated variables), transforming variables (e.g., log transformation), adding interaction terms or polynomial terms, or using more advanced regression techniques like regularization (e.g., ridge regression or lasso regression). The interpretability and predictive capability of the model should be balanced based on your specific requirements.
+
+### Comparison map of coefficients
+
+To compare the magnitude of the coefficients, we can plot a comparison map using the coefplot() function from the coefplot package.
+```{r}
+# We should install and load the coefplot package
+# Plot the comparison map of coefficient magnitudes
+coefplot(model)
+```
+
+In the comparison map, the length of each line represents the magnitude of the coefficient. However, it's important to note that the importance of a coefficient is not solely determined by its magnitude. The importance also depends on the scale of the variables. If the variables are on different scales, comparing the magnitudes directly may not be meaningful. In such cases, it's recommended to standardize the variables before comparing the coefficients.
+
+### Performance on the test data
+
+To describe the performance of the model on the test data, we can use various evaluation metrics such as R-squared, mean squared error (MSE), or root mean squared error (RMSE) and othe metrics which we had in previous section.
+```{r}
+
+# R-squared
+cat("R-squared: ", R_squared_test, '\n')
+
+# MSE
+cat("MSE of test data: ", MSE_test, '\n')
+
+# Calculate RMSE
+RMSE_test <- sqrt(MSE_test)
+cat("RMSE of test data: ", RMSE_test)
+
+
+```
+
+To improve the performance of the model, we can consider the following:
+
+1. Feature selection: Identify and include only the most relevant predictor variables in the model. This can help reduce overfitting and improve interpretability. We will do this method in the next section.
+
+2. Feature engineering: Create new features by transforming or combining existing ones to capture additional information that may improve prediction accuracy.
+
+3. Regularization: Apply regularization techniques such as ridge regression or lasso regression to prevent overfitting and improve generalization.
+
+4. Model selection: Explore different regression algorithms or variations of multiple regression (e.g., polynomial regression) to find a model that better fits the data.
+
+5. Non-linear relationships: Explore the possibility of non-linear relationships between the predictors and the response variable. You can include interaction terms or polynomial terms in the model to capture non-linear effects.
+
+6. Outlier detection and treatment: Identify and handle outliers in the data. Outliers can have a significant impact on the model's performance, so removing or adjusting them appropriately can improve the model's predictive ability.
+
+7. Cross-validation: Use cross-validation techniques to assess the model's performance on different subsets of the data. This can help estimate the model's generalization ability and identify potential issues with overfitting.
+
+By considering these steps, we can enhance the interpretability and predictive capability of the multiple regression model. We will do the first step in the next section...
+
+# 3) Feature Selection and Analysis
+
+#### Using t-test and p-values
+
+We can follow according to the following steps:
+
+1. Calculate t-tests and p-values: Use the appropriate statistical test, such as the t-test, to compare the means of different groups for each feature. We have all of p-values in our regression model which calculated in previous section.
+
+2. Select features based on p-values: Sort the features based on their p-values in ascending order. Choose a significance level (e.g., 0.05) and select the features with p-values below this threshold. These features are considered statistically significant and may have a meaningful impact on the model. For this step just enough select features that have one or more than one star in aummary of our model(summary(model)).
+
+3. Reduce the number of features: Once you have selected the statistically significant features, reduce the number of features to improve the interpretability of your model. You can choose a specific number of features based on your preference or domain knowledge.
+
+4. Analyze the model performance: After reducing the number of features, evaluate how the model's performance changes. Train the model using the selected features and compare its performance metrics with the previous model that used all the features. This analysis will help you understand how the model's predictive ability is affected by feature selection.
+
+5. Monitor changes in the mentioned criteria: During feature selection, keep track of the changes in the mentioned criteria, such as the t-values, p-values, and other performance metrics. Compare these values before and after feature selection to observe how they change. This analysis will provide insights into the impact of feature selection on the model's interpretability and predictive performance.
+
+The reason for choosing this method is that it allows you to identify statistically significant features and reduce the number of features to improve the interpretability of the model. By analyzing the model's performance before and after feature selection, you can assess the impact of feature selection on the model's predictive ability. Additionally, using t-tests and p-values is a common and widely accepted approach for feature selection in statistical analysis.
+selected_train_data = train_data[, names(train_data) %in% selected_features]
+# selected_test_data
+dim(selected_train_data)
+dim(train_data)
+At the first we should select features that have p-value<0.05
+```{r}
+# Step 1: Extract p-values
+p_values = summary(model)$coefficients[, "Pr(>|t|)"]
+
+# Step 2: Sort features based on p-values
+sorted_by_p_values = p_values[order(p_values)]
+
+# Step 3: select p-value < 0.05
+selected_features_with_p_values = sorted_by_p_values[sorted_by_p_values < 0.05]
+
+# Step4: select just name of features
+selected_features = names(selected_features_with_p_values)
+selected_features = append(selected_features, 'price')
+selected_features
+```
+
+To check:
+```{r}
+selected_train_data = train_data[, names(train_data) %in% selected_features]
+# selected_test_data
+dim(selected_train_data)
+dim(train_data)
+```
+
+Model using features which selected
+```{r}
+selected_features_model = lm(price ~ ., data= selected_train_data)
+summary(selected_features_model)
+```
+
+Calculate the predicted values
+```{r}
+# Calculate the predicted values
+
+# Train Data
+predicted_train_selected = predict(selected_features_model, train_data)
+# predicted_train
+
+# Test Data
+predicted_test_selected = predict(selected_features_model, test_data)
+# predicted_test
+```
+We just test our model performance for test dada(becaouse performavce on the test data is more important!)
+
+#### RSS(Residuals Sum of Squares):
+```{r}
+# For Test Data:
+
+## Calculate the residuals:
+residual_test_selected = test_data$price - predicted_test_selected
+
+## Calculate the Residuals Sum of Squares
+RSS_test_selected = sum(residual_test_selected^2)
+cat('RSS_test_selected:', RSS_test_selected, '\n')
+cat('RSS_test:', RSS_test, '\n')
+```
+As you see, our model is so good,although we reduced the number of features, RSS did not change significantly
+
+#### TSS(Total Sum of Squares):
+
+
+TSS is the same value as before because it does not depend on the model!
+```{r}
+cat("TSS_test_selected(TSS_test): ", TSS_test)
+```
+
+#### MSE (Mean Squared Error):
+```{r}
+# For Test Data
+
+## Calculate MSE(Mean Squared Error)
+MSE_test_selected = RSS_test_selected / length(test_data$price)
+cat('MSE_test_selected:', MSE_test_selected, '\n')
+
+cat('MSE_test:', MSE_test, '\n')
+
+```
+As you see, our model is so good,although we reduced the number of features, MSE did not change significantly
+
+#### R-squared:
+```{r}
+# For Test Data
+
+## Calculate the R-squared
+R_squared_test_selected = 1 - RSS_test_selected / TSS_test
+cat('R_squared_test_selected:', R_squared_test_selected, '\n')
+
+cat('R_squared_test', R_squared_test, '\n')
+
+```
+As you see, our model is so good,although we reduced the number of features, R-squared did not change.
+
+#### Adjusted R-squared
+```{r}
+# For Test Data:
+
+## Calculate the adjusted R-squared
+n_test = length(test_data$price)
+
+adjusted_R_squared_test_selected = 1 - 
+  (RSS_test_selected / (n_test - p - 1)) / (TSS_test / (n_test - 1))
+cat('adjusted_R_squared_test_selected:',adjusted_R_squared_test_selected, '\n')
+
+cat('adjusted_R_squared_test:', adjusted_R_squared_test, '\n')
+```
+As you see, our model is so good,although we reduced the number of features, adjusted R-squared did not change significantly.
+
+As you see all Criterions did not change significantly so our model is so good.
+
+We select this method becaous we khnow that in regression some features have not main effect, they are also affected by the main features. They(not main features) have small p-value value so we should drop them.
+
+#### Using f-statistics and ANOVA
+
+We can follow according to the following steps:
+
+1. Fit a linear regression model: This model will be used to calculate the F-statistics and p-values for each feature. we did it.
+
+2. Perform ANOVA: Use the `anova()` function in R to perform an analysis of variance (ANOVA) on the linear regression model. This will calculate the F-statistics and p-values for each feature, indicating their significance in explaining the variation in the response variable.
+
+3. Select top features: Sort the features based on their F-statistics or p-values in descending order. Choose the top 10 features with the highest F-statistics or the lowest p-values. These features are considered the most significant in explaining the response variable.
+
+4. Output the selected features: Print or store the names of the top 10 features for further analysis or modeling.
+```{r}
+# library(dplyr)
+# Perform ANOVA and calculate f-statistics for each feature
+f_stats <- apply(train_data[, -ncol(train_data)], MARGIN = 2,
+                 FUN = function(x) {
+                                    anova_result <- anova(model)
+                                    f_statistic <- anova_result$F[1]
+                                    return(f_statistic)
+                                    })
+# Sort the features based on f-statistics in descending order
+sorted_features <- sort(f_stats, decreasing = TRUE)
+
+# Select top 10 features
+top_10_features <- names(sorted_features)[1:10]
+
+# Print the top 10 features
+print(top_10_features)
+```
+
+#### synergy
+
+Two features that have synergy in statistics refer to two variables that are strongly related or dependent on each other. In other words, when these two features are analyzed together, they provide more meaningful insights and a better understanding of the data.
+
+To find such synergistic features in a dataset, we can use various statistical techniques. Here are two common methods:
+
+1. Correlation Analysis: Correlation measures the strength and direction of the linear relationship between two variables. By calculating the correlation coefficient (such as Pearson's correlation coefficient), we can identify if there is a significant association between two features. A high positive or negative correlation indicates synergy between the variables. For example, if we have data on hours studied and exam scores, a high positive correlation would suggest that studying more hours leads to higher scores.
+
+2. Regression Analysis: Regression analysis helps us understand how one variable (dependent variable) changes with respect to another variable (independent variable). By fitting a regression model, we can determine the relationship between the variables and quantify their synergy. For instance, if we have data on advertising expenditure and sales revenue, regression analysis can reveal how changes in advertising spending impact sales.
+
+Both correlation analysis and regression analysis require numerical data for analysis. Once we have identified potential synergistic features using these techniques, it is essential to interpret the results carefully and consider other factors such as causality or confounding variables before drawing conclusions about their relationship.
+
+In the case where two predictor variables have a synergistic relationship, the focus shifts from performing separate t-tests and feature selection on the individual variables to considering the combined effect of the two variables as a single feature.
+
+When two variables have a synergistic relationship, their interaction is important in explaining the variation in the dependent variable. By treating them as a single feature, we can capture this interaction and its joint influence on the dependent variable. Therefore, in this case, there is no need for t-tests and feature selection on the individual variables separately.
+
+Instead, the emphasis should be on identifying and including the synergistic variable (the combined effect of the two variables) in the feature set. This allows us to account for the interaction between the variables and their joint impact on the dependent variable. By considering the synergistic variable, we can better capture the relationship between the predictor variables and the dependent variable, improving the interpretability and performance of the model.
+
+
+# Bonous
+n addition to multiple regression, there are several other interpretable models. Here are a few examples:
+
+1. Decision Trees (e.g., using the rpart package): Decision trees are a non-linear model that recursively partitions the data based on different features to make predictions. Each node in the tree represents a decision based on a specific feature, and each leaf node represents a prediction. Decision trees are interpretable because the splits and decisions can be easily visualized and understood.
+
+2. Generalized Linear Models (e.g., using the glm function): Generalized linear models (GLMs) are an extension of linear regression that can handle non-normal response variables and non-linear relationships between predictors and the response. GLMs allow for different types of response distributions (e.g., binomial, Poisson) and link functions (e.g., logit, log) to model different types of data. GLMs provide interpretable coefficients that represent the effect of each predictor on the response variable.
+
+3. Support Vector Machines(SVM) (e.g., using the e1071 package): Support Vector Machines (SVMs) are a popular machine learning algorithm that can be used for both classification and regression tasks. SVMs aim to find the best hyperplane that separates the data into different classes or predicts the continuous response variable. SVMs can be interpreted by examining the support vectors, which are the data points closest to the decision boundary.
+
+These are just a few examples of interpretable models. Each model has its own strengths and limitations, and the choice of model depends on the specific data and problem at hand.
+
+Let's explain and fit decision tree:
+
+### Decision tree
+
+One example of a model with high interpretability is the decision tree. In R, we can fit a decision tree model using the "rpart" package. 
+
+A decision tree is a flowchart-like structure where each internal node represents a feature or attribute, each branch represents a decision rule, and each leaf node represents the outcome or prediction. The model learns these decision rules from the training data to make predictions on new data.
+
+To fit a decision tree model in R, we can use the following steps:
+
+1. Load the "rpart" package: `library(rpart)`
+
+2. Prepare the data: Split the dataset into training and testing sets.
+
+3. Fit the decision tree model: Use the `rpart()` function to fit the model.
+
+4. Interpretation: The resulting decision tree can be visualized using plot functions in R (e.g., `plot()`). Each node in the tree represents a split based on a specific feature and threshold value. The leaf nodes provide predictions for different classes or continuous values.
+
+```{r}
+# library(rpart)
+new_model = rpart(price ~ ., data = train_data)
+summary(new_model)
+```
+Calculate the predicted values
+```{r}
+# Calculate the predicted values
+
+# Train Data
+predicted_train_decision_tree = predict(new_model, train_data)
+# predicted_train
+
+# Test Data
+predicted_test_decision_tree = predict(new_model, test_data)
+# predicted_test
+```
+We just test our model performance for test dada(becaouse performavce on the test data is more important!)
+
+#### RSS(Residuals Sum of Squares):
+```{r}
+# For Test Data:
+
+## Calculate the residuals:
+residual_test_decision_tree = test_data$price - predicted_test_decision_tree
+
+## Calculate the Residuals Sum of Squares
+RSS_test_decision_tree = sum(residual_test_decision_tree^2)
+cat('RSS_test_decision_tree:', RSS_test_decision_tree, '\n')
+cat('RSS_test_multiple_regression:', RSS_test, '\n')
+```
+
+#### TSS(Total Sum of Squares):
+
+
+TSS is the same value as regression because it does not depend on the model!
+```{r}
+cat("TSS_test_selected(TSS_test): ", TSS_test)
+```
+
+#### MSE (Mean Squared Error):
+```{r}
+# For Test Data
+
+## Calculate MSE(Mean Squared Error)
+MSE_test_decision_tree = RSS_test_decision_tree / length(test_data$price)
+cat('MSE_test_decision_tree:', MSE_test_decision_tree, '\n')
+
+cat('MSE_test_regression:', MSE_test, '\n')
+
+```
+
+#### R-squared:
+```{r}
+# For Test Data
+
+## Calculate the R-squared
+R_squared_test_decision_tree = 1 - RSS_test_decision_tree / TSS_test
+cat('R_squared_test_decision_tree:', R_squared_test_decision_tree, '\n')
+
+cat('R_squared_test_regression: ', R_squared_test, '\n')
+
+```
+
+#### Adjusted R-squared
+```{r}
+# For Test Data:
+
+## Calculate the adjusted R-squared
+n_test = length(test_data$price)
+
+adjusted_R_squared_test_decision_tree = 1 - 
+  (RSS_test_decision_tree / (n_test - p - 1)) / (TSS_test / (n_test - 1))
+cat('adjusted_R_squared_test_decision_tree:',adjusted_R_squared_test_decision_tree, '\n')
+
+cat('adjusted_R_squared_test_regression:', adjusted_R_squared_test, '\n')
+```
+As you see, our model is good but multiple regression is better!
+
+Interpretation: The resulting decision tree can be visualized using plot functions in R (e.g., `plot()`). Each node in the tree represents a split based on a specific feature and threshold value. The leaf nodes provide predictions for different classes or continuous values.
+
+The advantage of using a decision tree is its interpretability. We can easily understand and explain how decisions are made by following branches and nodes in the tree structure. Additionally, decision trees can handle both categorical and numerical features without requiring extensive preprocessing.
+
+However, one limitation of decision trees is their tendency to overfit noisy data or complex relationships between variables. To mitigate this issue, techniques like pruning or ensemble methods (e.g., random forests) can be used.
+
+Overall, fitting a decision tree model in R provides an interpretable solution for analyzing and predicting outcomes based on input features in various domains such as healthcare, finance, or marketing.
