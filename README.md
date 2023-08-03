@@ -15,11 +15,11 @@ The following things have been done in this project.
 In this section, we are required to fit a multiple regression model to the training data. The goal is to perform this task and analyze the results afterward.
 
 - First, fit the model to the training data and report the following measures for both datasets:
-- - RSS (Residual Sum of Squares)
-- TSS (Total Sum of Squares)
-- MSE (Mean Squared Error)
-- R-squared
-- Adjusted R-squared
+  - RSS (Residual Sum of Squares)
+  - TSS (Total Sum of Squares)
+  - MSE (Mean Squared Error)
+  - R-squared
+  - Adjusted R-squared
 
 Explain what each of these measures represents and where they are applicable.
 
